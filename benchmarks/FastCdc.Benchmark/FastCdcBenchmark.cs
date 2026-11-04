@@ -7,11 +7,23 @@ namespace FastCdc.Benchmark;
 public class FastCdcBenchmark
 {
     private byte[] _data = [];
+    private MemoryStream _memoryStream = null!;
+    private Pipe _pipe = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         _data = File.ReadAllBytes("./fixtures/SekienAkashita.jpg");
+        _memoryStream = new MemoryStream(_data, writable: false);
+    }
+
+    [IterationSetup(Target = nameof(Benchmark16K_PipeReader))]
+    public void SetupPipe()
+    {
+        _pipe = new Pipe();
+        _data.AsSpan().CopyTo(_pipe.Writer.GetSpan(_data.Length));
+        _pipe.Writer.Advance(_data.Length);
+        _pipe.Writer.Complete();
     }
 
     [Benchmark(Baseline = true)]
@@ -47,41 +59,34 @@ public class FastCdcBenchmark
     [Benchmark]
     public void Benchmark16K_SyncStream()
     {
-        using var stream = new MemoryStream(_data, writable: false);
-        foreach (var _ in FastCdc.Chunk(stream, FastCdcOptions.Default16KB)) { }
+        _memoryStream.Position = 0;
+        foreach (var _ in FastCdc.Chunk(_memoryStream, FastCdcOptions.Default16KB)) { }
     }
 
     [Benchmark]
     public async Task Benchmark16K_AsyncStream()
     {
-        using var stream = new MemoryStream(_data, writable: false);
-        await foreach (var _ in FastCdc.ChunkAsync(stream, FastCdcOptions.Default16KB)) { }
+        _memoryStream.Position = 0;
+        await foreach (var _ in FastCdc.ChunkAsync(_memoryStream, FastCdcOptions.Default16KB)) { }
     }
 
     [Benchmark]
     public async Task Benchmark32K_AsyncStream()
     {
-        using var stream = new MemoryStream(_data, writable: false);
-        await foreach (var _ in FastCdc.ChunkAsync(stream, FastCdcOptions.Default32KB)) { }
+        _memoryStream.Position = 0;
+        await foreach (var _ in FastCdc.ChunkAsync(_memoryStream, FastCdcOptions.Default32KB)) { }
     }
 
     [Benchmark]
     public async Task Benchmark64K_AsyncStream()
     {
-        using var stream = new MemoryStream(_data, writable: false);
-        await foreach (var _ in FastCdc.ChunkAsync(stream, FastCdcOptions.Default64KB)) { }
+        _memoryStream.Position = 0;
+        await foreach (var _ in FastCdc.ChunkAsync(_memoryStream, FastCdcOptions.Default64KB)) { }
     }
 
     [Benchmark]
     public async Task Benchmark16K_PipeReader()
     {
-        var pipe = new Pipe();
-        _ = Task.Run(async () =>
-        {
-            await pipe.Writer.WriteAsync(_data);
-            await pipe.Writer.CompleteAsync();
-        });
-
-        await foreach (var _ in FastCdc.ChunkAsync(pipe.Reader, FastCdcOptions.Default16KB)) { }
+        await foreach (var _ in FastCdc.ChunkAsync(_pipe.Reader, FastCdcOptions.Default16KB)) { }
     }
 }
