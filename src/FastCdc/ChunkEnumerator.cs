@@ -42,7 +42,7 @@ public ref struct ChunkEnumerator
 
         if (size == 0) return false;
 
-        _current = new Chunk(hash, _offset, size);
+        _current = new Chunk(_offset, hash, size);
         _offset += size;
         return true;
     }

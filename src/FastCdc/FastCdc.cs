@@ -82,7 +82,7 @@ public static class FastCdc
 
                     if (chunkSize == 0) break;
 
-                    yield return new Chunk(chunkHash, streamOffset + windowOffset, chunkSize);
+                    yield return new Chunk(streamOffset + windowOffset, chunkHash, chunkSize);
                     windowOffset += chunkSize;
                 }
 
@@ -158,7 +158,7 @@ public static class FastCdc
 
                     if (chunkSize == 0) break;
 
-                    yield return new Chunk(chunkHash, streamOffset + windowOffset, chunkSize);
+                    yield return new Chunk(streamOffset + windowOffset, chunkHash, chunkSize);
                     windowOffset += chunkSize;
                 }
 
@@ -216,7 +216,7 @@ public static class FastCdc
 
                         if (chunkSize == 0) break;
 
-                        yield return new Chunk(chunkHash, streamOffset, chunkSize);
+                        yield return new Chunk(streamOffset, chunkHash, chunkSize);
                         streamOffset += chunkSize;
                         buffer = buffer.Slice(chunkSize);
                         consumed = buffer.Start;
@@ -235,7 +235,7 @@ public static class FastCdc
 
                             if (chunkSize == 0) break;
 
-                            yield return new Chunk(chunkHash, streamOffset, chunkSize);
+                            yield return new Chunk(streamOffset, chunkHash, chunkSize);
                             streamOffset += chunkSize;
                             buffer = buffer.Slice(chunkSize);
                             consumed = buffer.Start;
