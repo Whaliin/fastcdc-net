@@ -1,4 +1,4 @@
-namespace FastCdc.Net.Tests;
+namespace FastCdc.Tests;
 
 public class FastCdcTests
 {

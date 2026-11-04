@@ -1,9 +1,9 @@
 using System.Numerics;
 
-namespace FastCdc.Net;
+namespace FastCdc;
 
 /// <summary>
-/// Configuration options for FastCDC content-defined chunking.
+/// Configuration options for FastCDC chunking.
 /// </summary>
 public readonly record struct FastCdcOptions
 {
@@ -43,22 +43,23 @@ public readonly record struct FastCdcOptions
     /// <summary>Maximum allowed size for any generated chunk.</summary>
     public int MaxSize { get; }
 
-    /// <summary>Stricter mask used for finding boundaries smaller than average (Phase 1).</summary>
+    /// <summary>Mask used for boundaries smaller than average (Phase 1).</summary>
     internal uint MaskS { get; }
 
-    /// <summary>Looser mask used for finding boundaries larger than average (Phase 2).</summary>
+    /// <summary>Mask used for boundaries larger than average (Phase 2).</summary>
     internal uint MaskL { get; }
 
-    /// <summary>Precalculated center offset relative to chunk start where Phase 1 ends.</summary>
+    /// <summary>Offset relative to chunk start where Phase 1 ends.</summary>
     internal int CenterOffset { get; }
 
     /// <summary>
-    /// Initializes and validates a new <see cref="FastCdcOptions"/> instance.
-    /// Pre-computes masks and offsets for optimal chunking performance.
+    /// Initializes a new <see cref="FastCdcOptions"/> instance with the specified chunk size bounds.
     /// </summary>
     /// <param name="minSize">Minimum chunk size in bytes (64 to 67,108,864).</param>
     /// <param name="avgSize">Average chunk size in bytes (256 to 268,435,456).</param>
     /// <param name="maxSize">Maximum chunk size in bytes (1,024 to 1,073,741,824).</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if any size argument is outside its allowed range.</exception>
+    /// <exception cref="ArgumentException">Thrown if minSize exceeds avgSize, or avgSize exceeds maxSize.</exception>
     public FastCdcOptions(int minSize, int avgSize, int maxSize)
     {
         if (minSize is < MinimumMin or > MinimumMax)
@@ -80,9 +81,6 @@ public readonly record struct FastCdcOptions
         MaskS = Mask(bits + 1);
         MaskL = Mask(bits - 1);
 
-        // Calculate center offset once:
-        // offset = min + ceil(min / 2)
-        // size = avg - min(offset, avg)
         var offset = minSize + CeilDiv(minSize, 2);
         if (offset > avgSize)
             offset = avgSize;

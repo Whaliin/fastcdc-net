@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
-using FastCdc.Net.Benchmark;
+using FastCdc.Benchmark;
 
 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 var artifactsPath = Path.Combine("BenchmarkDotNet.Artifacts", timestamp);

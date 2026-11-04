@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<RootNamespace>FastCdc.Net</RootNamespace>
-		<AssemblyName>FastCdc.Net</AssemblyName>
+		<RootNamespace>FastCdc</RootNamespace>
+		<AssemblyName>FastCdc</AssemblyName>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<Title>FastCdc.Net</Title>
-		<Description>FastCDC content-defined chunking for .NET</Description>
+		<Title>FastCdc</Title>
+		<Description>Content-defined chunking (FastCDC) for .NET</Description>
 		<RepositoryUrl>https://github.com/Whaliin/fastcdc-net</RepositoryUrl>
 		<PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
-		<PackageVersion>1.0.1</PackageVersion>
+		<PackageVersion>2.0.0</PackageVersion>
 		<Authors>Whaliin</Authors>
 	</PropertyGroup>
 

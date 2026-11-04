@@ -2,20 +2,25 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("FastCdc.Net.Tests")]
-namespace FastCdc.Net;
+[assembly: InternalsVisibleTo("FastCdc.Tests")]
+namespace FastCdc;
 
 /// <summary>
-/// Provides high-performance content-defined chunking using the FastCDC algorithm.
+/// Splits binary data into variable-sized chunks using content-defined chunking (FastCDC).
 /// </summary>
 public static class FastCdc
 {
     /// <summary>
-    /// Returns a zero-allocation <see cref="ChunkEnumerator"/> over the chunks in <paramref name="source"/>.
+    /// Splits in-memory data into chunks.
     /// </summary>
     /// <param name="source">The byte data to chunk.</param>
-    /// <param name="options">Chunking configuration options. Defaults to <see cref="FastCdcOptions.Default16KB"/>.</param>
-    /// <param name="eof">Whether this span represents the end of the input.</param>
+    /// <param name="options">The chunking options, or <see langword="null"/> to use <see cref="FastCdcOptions.Default16KB"/>.</param>
+    /// <param name="eof">Whether this span represents the end of the input stream.</param>
+    /// <returns>A <see cref="ChunkEnumerator"/> for iterating through chunks.</returns>
+    /// <remarks>
+    /// For file or network data, use <see cref="Chunk(Stream, FastCdcOptions?, int)"/> or <see cref="ChunkAsync(Stream, FastCdcOptions?, int, CancellationToken)"/>
+    /// to avoid reading the entire payload into memory.
+    /// </remarks>
     public static ChunkEnumerator Chunk(
         ReadOnlySpan<byte> source,
         FastCdcOptions? options = null,
@@ -26,12 +31,17 @@ public static class FastCdc
     }
 
     /// <summary>
-    /// Lazily yields chunks from a synchronous <see cref="Stream"/> using pooled buffers.
-    /// Does not load the entire stream into memory.
+    /// Reads chunks sequentially from a stream.
     /// </summary>
-    /// <param name="source">A readable stream.</param>
-    /// <param name="options">Chunking configuration options. Defaults to <see cref="FastCdcOptions.Default16KB"/>.</param>
-    /// <param name="bufferSize">Optional read buffer size in bytes. Defaults to 2x maximum chunk size.</param>
+    /// <param name="source">The stream to read.</param>
+    /// <param name="options">The chunking options, or <see langword="null"/> to use <see cref="FastCdcOptions.Default16KB"/>.</param>
+    /// <param name="bufferSize">The internal read buffer size in bytes, or 0 to use twice the maximum chunk size.</param>
+    /// <returns>A sequence of <see cref="Chunk"/> instances read from the stream.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="source"/> is not readable.</exception>
+    /// <remarks>
+    /// For asynchronous stream reading, use <see cref="ChunkAsync(Stream, FastCdcOptions?, int, CancellationToken)"/>.
+    /// </remarks>
     public static IEnumerable<Chunk> Chunk(
         Stream source,
         FastCdcOptions? options = null,
@@ -70,7 +80,7 @@ public static class FastCdc
                         remaining,
                         eof);
 
-                    if (chunkSize == 0) break; // Need more data from the stream
+                    if (chunkSize == 0) break;
 
                     yield return new Chunk(chunkHash, streamOffset + windowOffset, chunkSize);
                     windowOffset += chunkSize;
@@ -80,7 +90,6 @@ public static class FastCdc
 
                 if (eof) break;
 
-                // Slide unconsumed bytes to the front of the rented buffer
                 var unconsumed = buffered - windowOffset;
                 if (unconsumed > 0)
                     rentedBuffer.AsSpan(windowOffset, unconsumed).CopyTo(rentedBuffer);
@@ -94,12 +103,18 @@ public static class FastCdc
     }
 
     /// <summary>
-    /// Lazily yields chunks from an asynchronous <see cref="Stream"/> using pooled buffers.
+    /// Reads chunks asynchronously from a stream.
     /// </summary>
-    /// <param name="source">A readable stream.</param>
-    /// <param name="options">Chunking configuration options. Defaults to <see cref="FastCdcOptions.Default16KB"/>.</param>
-    /// <param name="bufferSize">Optional read buffer size in bytes. Defaults to 2x maximum chunk size.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="source">The stream to read.</param>
+    /// <param name="options">The chunking options, or <see langword="null"/> to use <see cref="FastCdcOptions.Default16KB"/>.</param>
+    /// <param name="bufferSize">The internal read buffer size in bytes, or 0 to use twice the maximum chunk size.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>An asynchronous sequence of <see cref="Chunk"/> instances read from the stream.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="source"/> is not readable.</exception>
+    /// <remarks>
+    /// When reading from a <see cref="PipeReader"/>, use <see cref="ChunkAsync(PipeReader, FastCdcOptions?, CancellationToken)"/>.
+    /// </remarks>
     public static async IAsyncEnumerable<Chunk> ChunkAsync(
         Stream source,
         FastCdcOptions? options = null,
@@ -141,7 +156,7 @@ public static class FastCdc
                         remaining,
                         eof);
 
-                    if (chunkSize == 0) break; // Need more data from the stream
+                    if (chunkSize == 0) break;
 
                     yield return new Chunk(chunkHash, streamOffset + windowOffset, chunkSize);
                     windowOffset += chunkSize;
@@ -151,7 +166,6 @@ public static class FastCdc
 
                 if (eof) break;
 
-                // Slide unconsumed bytes to the front of the rented buffer
                 var unconsumed = buffered - windowOffset;
                 if (unconsumed > 0)
                     rentedBuffer.AsSpan(windowOffset, unconsumed).CopyTo(rentedBuffer);
@@ -165,11 +179,13 @@ public static class FastCdc
     }
 
     /// <summary>
-    /// Lazily yields chunks from a <see cref="PipeReader"/> without intermediate buffer copies.
+    /// Reads chunks asynchronously from a pipeline reader without intermediate buffer copies.
     /// </summary>
-    /// <param name="reader">The pipeline reader.</param>
-    /// <param name="options">Chunking configuration options. Defaults to <see cref="FastCdcOptions.Default16KB"/>.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="reader">The pipeline reader to read from.</param>
+    /// <param name="options">The chunking options, or <see langword="null"/> to use <see cref="FastCdcOptions.Default16KB"/>.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>An asynchronous sequence of <see cref="Chunk"/> instances read from the pipeline reader.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="reader"/> is <see langword="null"/>.</exception>
     public static async IAsyncEnumerable<Chunk> ChunkAsync(
         PipeReader reader,
         FastCdcOptions? options = null,
@@ -193,13 +209,12 @@ public static class FastCdc
             {
                 while (buffer.Length > 0)
                 {
-                    // If buffer is contiguous, chunk directly with zero copies
                     if (buffer.IsSingleSegment)
                     {
                         var span = buffer.FirstSpan;
                         var (chunkHash, chunkSize) = Cut(span, in opts, span.Length, result.IsCompleted);
 
-                        if (chunkSize == 0) break; // Need more data
+                        if (chunkSize == 0) break;
 
                         yield return new Chunk(chunkHash, streamOffset, chunkSize);
                         streamOffset += chunkSize;
@@ -208,11 +223,9 @@ public static class FastCdc
                     }
                     else
                     {
-                        // Multi-segment: if we have less than maxSize and not completed, ask for more
                         if (!result.IsCompleted && buffer.Length < opts.MaxSize)
                             break;
 
-                        // Linearize into a rented buffer for cutting across segments
                         var copyLength = (int)Math.Min(buffer.Length, opts.MaxSize);
                         var rented = ArrayPool<byte>.Shared.Rent(copyLength);
                         try
@@ -243,10 +256,6 @@ public static class FastCdc
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Core FastCDC algorithm
-    // -------------------------------------------------------------------------
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static (uint hash, int size) Cut(
         ReadOnlySpan<byte> source,
@@ -274,10 +283,8 @@ public static class FastCdc
         var hash = 0u;
         var i = minSize;
 
-        // Wrapped arithmetic to guarantee immunity to overflow in checked contexts
         unchecked
         {
-            // Phase 1: stricter mask for smaller-than-average chunks
             while (i < len1)
             {
                 hash = (hash >> 1) + hashes[source[i]];
@@ -286,7 +293,6 @@ public static class FastCdc
                     return (hash, i);
             }
 
-            // Phase 2: looser mask for larger-than-average chunks
             while (i < len2)
             {
                 hash = (hash >> 1) + hashes[source[i]];

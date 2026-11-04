@@ -1,7 +1,7 @@
 using System.IO.Pipelines;
 using BenchmarkDotNet.Attributes;
 
-namespace FastCdc.Net.Benchmark;
+namespace FastCdc.Benchmark;
 
 [MemoryDiagnoser]
 public class FastCdcBenchmark

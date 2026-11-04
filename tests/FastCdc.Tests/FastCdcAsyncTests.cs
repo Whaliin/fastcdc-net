@@ -1,6 +1,6 @@
 using System.IO.Pipelines;
 
-namespace FastCdc.Net.Tests;
+namespace FastCdc.Tests;
 
 public class FastCdcAsyncTests
 {

@@ -1,9 +1,7 @@
-namespace FastCdc.Net;
+namespace FastCdc;
 
 /// <summary>
-/// A stack-allocated, forward-only enumerator over FastCDC chunks.
-/// Usable directly in a <c>foreach</c> loop with zero heap allocation.
-/// Obtained via <see cref="FastCdc.Chunk(ReadOnlySpan{byte}, FastCdcOptions)"/>.
+/// Enumerates chunks over a contiguous memory buffer.
 /// </summary>
 public ref struct ChunkEnumerator
 {
@@ -23,13 +21,14 @@ public ref struct ChunkEnumerator
         _current = default;
     }
 
-    /// <summary>Returns this enumerator (satisfies the foreach pattern).</summary>
+    /// <summary>Returns this enumerator for foreach iteration.</summary>
     public readonly ChunkEnumerator GetEnumerator() => this;
 
-    /// <summary>The current chunk.</summary>
+    /// <summary>Gets the chunk at the current position of the enumerator.</summary>
     public readonly Chunk Current => _current;
 
-    /// <summary>Advances to the next chunk. Returns <c>false</c> when exhausted.</summary>
+    /// <summary>Advances the enumerator to the next chunk in the source.</summary>
+    /// <returns><see langword="true"/> if the enumerator successfully advanced to the next chunk; <see langword="false"/> if the end of the source was reached.</returns>
     public bool MoveNext()
     {
         var remaining = _source.Length - _offset;

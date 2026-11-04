@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FastCdc/FastCdc.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FastCdc.Tests/FastCdc.Tests.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/FastCdc.Benchmark/FastCdc.Benchmark.csproj" />
+  </Folder>
+</Solution>
