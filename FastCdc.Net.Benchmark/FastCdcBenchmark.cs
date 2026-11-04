@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using BenchmarkDotNet.Attributes;
 
 namespace FastCdc.Net.Benchmark;
@@ -16,65 +17,71 @@ public class FastCdcBenchmark
     [Benchmark(Baseline = true)]
     public void Benchmark16K()
     {
-        foreach (var _ in FastCdc.GetChunks(_data, 8192, 16384, 32768)) { }
+        foreach (var _ in FastCdc.Chunk(_data, FastCdcOptions.Default16KB)) { }
     }
 
     [Benchmark]
     public void Benchmark32K()
     {
-        foreach (var _ in FastCdc.GetChunks(_data, 16384, 32768, 65536)) { }
+        foreach (var _ in FastCdc.Chunk(_data, FastCdcOptions.Default32KB)) { }
     }
 
     [Benchmark]
     public void Benchmark64K()
     {
-        foreach (var _ in FastCdc.GetChunks(_data, 32768, 65536, 131_072)) { }
+        foreach (var _ in FastCdc.Chunk(_data, FastCdcOptions.Default64KB)) { }
     }
 
     [Benchmark]
     public List<Chunk> Benchmark16K_ToList()
     {
-        return FastCdc.GetChunks(_data, 8192, 16384, 32768).ToList();
+        return FastCdc.Chunk(_data, FastCdcOptions.Default16KB).ToList();
     }
 
     [Benchmark]
     public Chunk[] Benchmark16K_ToArray()
     {
-        return FastCdc.GetChunks(_data, 8192, 16384, 32768).ToArray();
-    }
-
-    [Benchmark]
-    public async Task Benchmark16K_Async()
-    {
-        using var stream = new MemoryStream(_data, writable: false);
-        await foreach (var _ in FastCdc.GetChunksAsync(stream, 8192, 16384, 32768)) { }
+        return FastCdc.Chunk(_data, FastCdcOptions.Default16KB).ToArray();
     }
 
     [Benchmark]
     public void Benchmark16K_SyncStream()
     {
         using var stream = new MemoryStream(_data, writable: false);
-        foreach (var _ in FastCdc.GetChunks(stream, 8192, 16384, 32768)) { }
+        foreach (var _ in FastCdc.Chunk(stream, FastCdcOptions.Default16KB)) { }
     }
 
     [Benchmark]
-    public async Task Benchmark32K_Async()
+    public async Task Benchmark16K_AsyncStream()
     {
         using var stream = new MemoryStream(_data, writable: false);
-        await foreach (var _ in FastCdc.GetChunksAsync(stream, 16384, 32768, 65536)) { }
+        await foreach (var _ in FastCdc.ChunkAsync(stream, FastCdcOptions.Default16KB)) { }
     }
 
     [Benchmark]
-    public async Task Benchmark64K_Async()
+    public async Task Benchmark32K_AsyncStream()
     {
         using var stream = new MemoryStream(_data, writable: false);
-        await foreach (var _ in FastCdc.GetChunksAsync(stream, 32768, 65536, 131_072)) { }
+        await foreach (var _ in FastCdc.ChunkAsync(stream, FastCdcOptions.Default32KB)) { }
     }
 
     [Benchmark]
-    public async Task Benchmark16K_Async_CustomBuffer()
+    public async Task Benchmark64K_AsyncStream()
     {
         using var stream = new MemoryStream(_data, writable: false);
-        await foreach (var _ in FastCdc.GetChunksAsync(stream, 8192, 16384, 32768, bufferSize: 65536)) { }
+        await foreach (var _ in FastCdc.ChunkAsync(stream, FastCdcOptions.Default64KB)) { }
+    }
+
+    [Benchmark]
+    public async Task Benchmark16K_PipeReader()
+    {
+        var pipe = new Pipe();
+        _ = Task.Run(async () =>
+        {
+            await pipe.Writer.WriteAsync(_data);
+            await pipe.Writer.CompleteAsync();
+        });
+
+        await foreach (var _ in FastCdc.ChunkAsync(pipe.Reader, FastCdcOptions.Default16KB)) { }
     }
 }
