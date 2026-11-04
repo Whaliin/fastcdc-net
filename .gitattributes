@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
-* text=auto
+* text=auto eol=lf
+*.cs    text eol=lf
+*.csproj text eol=lf
+*.slnx  text eol=lf
+*.jpg   binary

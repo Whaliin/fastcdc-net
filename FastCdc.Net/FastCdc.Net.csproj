@@ -1,17 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
-        <RootNamespace>FastCdc.Net</RootNamespace>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <AssemblyName>FastCdc.Net</AssemblyName>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Title>FastCdc</Title>
-        <Description>FastCdc implementation of fastcdc-rust</Description>
-        <RepositoryUrl>https://github.com/AlpaGit/fastcdc-net</RepositoryUrl>
-        <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
-        <PackageVersion>1.0.1</PackageVersion>
-    </PropertyGroup>
+	<PropertyGroup>
+		<RootNamespace>FastCdc.Net</RootNamespace>
+		<AssemblyName>FastCdc.Net</AssemblyName>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<Title>FastCdc.Net</Title>
+		<Description>FastCDC content-defined chunking for .NET</Description>
+		<RepositoryUrl>https://github.com/Whaliin/fastcdc-net</RepositoryUrl>
+		<PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
+		<PackageVersion>1.0.1</PackageVersion>
+		<Authors>Whaliin</Authors>
+	</PropertyGroup>
 
 </Project>

@@ -16,7 +16,7 @@ internal static class Table
     // The original build.rs script was removed in fastcdc-rs commit f001c11 and shows the
     // exact implementation used to generate these "magic" numbers.
     //
-    public static readonly uint[] Hashes = {
+    public static readonly uint[] Hashes = [
         0x5c95_c078, 0x2240_8989, 0x2d48_a214, 0x1284_2087, 0x530f_8afb, 0x4745_36b9,
         0x2963_b4f1, 0x44cb_738b, 0x4ea7_403d, 0x4d60_6b6e, 0x074e_c5d3, 0x3af3_9d18,
         0x7260_03ca, 0x37a6_2a74, 0x51a2_f58e, 0x7506_358e, 0x5d4a_b128, 0x4d4a_e17b,
@@ -60,5 +60,5 @@ internal static class Table
         0x7f63_bd46, 0x32d2_dbd8, 0x3c79_0f4a, 0x772b_7239, 0x6f8b_2826, 0x677f_f609,
         0x0dc8_2c11, 0x23ff_e354, 0x2eac_53a6, 0x1613_9e09, 0x0afd_0dbc, 0x2a4d_4237,
         0x56a3_68c7, 0x2343_25e4, 0x2dce_9187, 0x32e8_ea7e
-    };
+    ];
 }

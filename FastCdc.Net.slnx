@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="FastCdc.Net.Benchmark/FastCdc.Net.Benchmark.csproj" />
+  <Project Path="FastCdc.Net.Tests/FastCdc.Net.Tests.csproj" />
+  <Project Path="FastCdc.Net/FastCdc.Net.csproj" />
+</Solution>
