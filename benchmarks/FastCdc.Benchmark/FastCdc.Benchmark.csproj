@@ -9,7 +9,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="fixtures\SekienAkashita.jpg">
+		<None Update="fixtures\*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

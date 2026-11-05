@@ -9,8 +9,9 @@ trim_trailing_whitespace = true
 [*.cs]
 indent_style = tab
 indent_size = 4
+# Enforce explicit types instead of 'var'
+csharp_style_var_for_built_in_types = false:warning
 
 [*.{csproj,props,targets,slnx}]
 indent_style = tab
 indent_size = 2
-
