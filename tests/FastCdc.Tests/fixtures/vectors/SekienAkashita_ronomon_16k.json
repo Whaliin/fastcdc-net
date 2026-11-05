@@ -1,0 +1,41 @@
+{
+  "fixture": "SekienAkashita.jpg",
+  "variant": "ronomon",
+  "min_size": 8192,
+  "avg_size": 16384,
+  "max_size": 32768,
+  "total_bytes": 109466,
+  "chunk_count": 6,
+  "chunks": [
+    {
+      "offset": 0,
+      "length": 22366,
+      "hash": "1527472128"
+    },
+    {
+      "offset": 22366,
+      "length": 8282,
+      "hash": "1174757376"
+    },
+    {
+      "offset": 30648,
+      "length": 16303,
+      "hash": "2687197184"
+    },
+    {
+      "offset": 46951,
+      "length": 18696,
+      "hash": "1210105856"
+    },
+    {
+      "offset": 65647,
+      "length": 32768,
+      "hash": "2984739645"
+    },
+    {
+      "offset": 98415,
+      "length": 11051,
+      "hash": "1121740051"
+    }
+  ]
+}

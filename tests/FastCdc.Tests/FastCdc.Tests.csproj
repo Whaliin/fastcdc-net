@@ -21,6 +21,9 @@
 		<None Update="fixtures\SekienAkashita.jpg">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+		<None Update="fixtures\vectors\SekienAkashita_*.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 
 </Project>

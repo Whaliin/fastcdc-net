@@ -1,6 +1,6 @@
 # FastCdc
 
-A high-performance .NET implementation of the [FastCDC algorithm](https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia) for content-defined chunking, providing bit-for-bit compatibility with Rust's [`fastcdc-rs`](https://github.com/nlfiedler/fastcdc-rs) (`fastcdc::ronomon`).
+A .NET implementation of the [FastCDC algorithm](https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia) ([2020 paper](https://ieeexplore.ieee.org/document/9055082)) for content-defined chunking, providing bit-for-bit compatibility with Rust's [`fastcdc-rs`](https://github.com/nlfiedler/fastcdc-rs) across `v2020`, `v2016`, and `ronomon` formats.
 
 [![CI](https://github.com/Whaliin/fastcdc-net/actions/workflows/ci.yml/badge.svg)](https://github.com/Whaliin/fastcdc-net/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/FastCdc.svg)](https://www.nuget.org/packages/FastCdc)
@@ -18,53 +18,60 @@ dotnet add package FastCdc
 
 ## Features
 
-- **In-Memory Slicing**: `Chunk(ReadOnlySpan<byte>)` uses a `ref struct` enumerator without heap allocations.
-- **Streaming**:
-  - `Chunk(Stream)`: Sequential synchronous stream reading using buffer pooling.
-  - `ChunkAsync(Stream)`: Asynchronous stream reading for non-blocking I/O.
-  - `ChunkAsync(PipeReader)`: Direct reading from `System.IO.Pipelines` without intermediate buffer copies.
-- **64-bit Offsets**: Supports streams and files of any size without 32-bit integer overflow.
-- **Compact Layout**: 16-byte `Chunk` value type with zero padding bytes.
-- **Arithmetic Safety**: Arithmetic operations are explicitly unchecked, preventing runtime overflow exceptions in checked compilation contexts.
+- **Multiple FastCDC Formats**:
+  - `FastCdcFormat.V2020` (default): 64-bit Gear hash rolling two bytes per step (`fastcdc-rs::v2020`).
+  - `FastCdcFormat.V2016`: 64-bit Gear hash rolling one byte per step (`fastcdc-rs::v2016`, Go/C Destor).
+  - `FastCdcFormat.Ronomon`: Legacy 31-bit right-shift variant (`fastcdc-rs::ronomon`, FastCdc v1.x/v2.x).
+- **Configurable Normalization**: Supports `NormalizationLevel.Level0` through `NormalizationLevel.Level3`.
+- **Metadata & Single-Pass Payload Extraction**:
+  - `Chunk` / `ChunkAsync`: Yields 24-byte `Chunk(long Offset, ulong Hash, int Length)` metadata records.
+  - `ChunkData` / `ChunkDataAsync`: Yields `ChunkData` records containing both chunk metadata and the underlying `ReadOnlyMemory<byte>` payload in a single pass.
+- **In-Memory & Streaming Overloads**:
+  - `ReadOnlySpan<byte>` and `ReadOnlyMemory<byte>` enumerators with zero heap allocations.
+  - Synchronous and asynchronous `Stream` readers backed by `ArrayPool<byte>`.
+  - `PipeReader` support for `System.IO.Pipelines` without intermediate copies on contiguous segments.
 
 ---
 
 ## Usage
 
-### 1. In-Memory Slices
+### 1. In-Memory Slicing
 
-Pass a byte span to `FastCdc.Chunk`:
+Pass a `ReadOnlySpan<byte>` to `FastCdc.Chunk`, or a `ReadOnlyMemory<byte>` to `FastCdc.ChunkData`:
 
 ```csharp
 using FastCdc;
 
 byte[] data = File.ReadAllBytes("file.bin");
 
-// Defaults to FastCdcOptions.Default16KB (~16 KB average chunks)
+// Defaults to FastCdcOptions.Default16KB (V2020, Level1, ~16 KB average chunks)
 foreach (Chunk chunk in FastCdc.Chunk(data))
 {
-    Console.WriteLine($"Chunk @ {chunk.Offset} (Length: {chunk.Length}, Hash: 0x{chunk.Hash:X8})");
+    Console.WriteLine($"Chunk @ {chunk.Offset} (Length: {chunk.Length}, Hash: 0x{chunk.Hash:X16})");
 }
 ```
 
-### 2. Synchronous Streams
+### 2. Single-Pass Payload Extraction (`ChunkData` / `ChunkDataAsync`)
 
-Read large files sequentially without loading the entire payload into memory:
+Use `ChunkData` or `ChunkDataAsync` to inspect or hash each chunk's byte payload in a single pass without seeking or re-reading the source stream:
 
 ```csharp
 using FastCdc;
+using System.Security.Cryptography;
 
-using FileStream stream = File.OpenRead("largefile.iso");
+await using FileStream stream = File.OpenRead("archive.tar");
 
-foreach (Chunk chunk in FastCdc.Chunk(stream, FastCdcOptions.Default32KB))
+await foreach (ChunkData chunk in FastCdc.ChunkDataAsync(stream, FastCdcOptions.Default32KB))
 {
-    // Process chunk
+    // chunk.Memory / chunk.Span is backed by a pooled buffer valid for the current iteration.
+    // Call chunk.ToArray() if you need to retain the bytes after advancing the enumerator.
+    byte[] sha256 = SHA256.HashData(chunk.Span);
 }
 ```
 
-### 3. Asynchronous Streams
+### 3. Synchronous & Asynchronous Streams
 
-Read streams asynchronously using `IAsyncEnumerable<Chunk>`:
+Read large files sequentially without loading the entire payload into memory:
 
 ```csharp
 using FastCdc;
@@ -73,7 +80,7 @@ await using FileStream stream = File.OpenRead("video.mp4");
 
 await foreach (Chunk chunk in FastCdc.ChunkAsync(stream, FastCdcOptions.Default64KB))
 {
-    // Process chunk
+    // Process chunk metadata
 }
 ```
 
@@ -87,7 +94,7 @@ using System.IO.Pipelines;
 
 await foreach (Chunk chunk in FastCdc.ChunkAsync(pipeReader, FastCdcOptions.Default16KB))
 {
-    // Process chunk
+    // Process chunk metadata
 }
 ```
 
@@ -95,32 +102,84 @@ await foreach (Chunk chunk in FastCdc.ChunkAsync(pipeReader, FastCdcOptions.Defa
 
 ## Configuration Options
 
-Configure chunk size bounds using presets or custom values:
+Configure chunk size bounds, algorithm format, and normalization level via `FastCdcOptions`:
 
 ```csharp
-// Presets
+// Presets (V2020, NormalizationLevel.Level1)
 FastCdcOptions.Default16KB // min: 8 KB,  avg: 16 KB, max: 32 KB
 FastCdcOptions.Default32KB // min: 16 KB, avg: 32 KB, max: 64 KB
 FastCdcOptions.Default64KB // min: 32 KB, avg: 64 KB, max: 128 KB
 
-// Custom bounds
-FastCdcOptions options = new(minSize: 4096, avgSize: 8192, maxSize: 16384);
+// Custom bounds, format, and normalization level
+FastCdcOptions options = new(
+    minSize: 4096,
+    avgSize: 16384,
+    maxSize: 65534,
+    format: FastCdcFormat.V2020,
+    normalization: NormalizationLevel.Level2);
+
+// Legacy v1/v2 Ronomon compatibility
+FastCdcOptions ronomonOptions = new(
+    minSize: 8192,
+    avgSize: 16384,
+    maxSize: 32768,
+    format: FastCdcFormat.Ronomon);
 ```
 
 ---
 
 ## Benchmarks
 
-Measurements conducted using BenchmarkDotNet on an **Intel Core i5-12600K (.NET 10)**:
+Measurements conducted on an **Intel Core i5-12600K 3.70GHz** comparing **.NET 10 (`FastCdc` v3.0.0)** via BenchmarkDotNet against **Rust ([`fastcdc-rs`](https://github.com/nlfiedler/fastcdc-rs) v3.1)** via Criterion with identical chunking parameters (`target-cpu=x86-64-v3`).
 
-| Fixture | Size | Method | Throughput | Allocated |
-| :--- | :--- | :--- | :--- | :--- |
-| `tsunami.tiff` | **3.07 MB** | In-Memory `Span` | 4.40 GB/s (698 μs) | 0 B |
-| `tsunami.tiff` | **3.07 MB** | `Stream` (Sync) | 3.71 GB/s (827 μs) | 184 B |
-| `tsunami.tiff` | **3.07 MB** | `Stream` (Async) | 3.76 GB/s (815 μs) | 272 B |
-| `shakespeare.txt` | **5.64 MB** | In-Memory `Span` | 4.17 GB/s (1,350 μs) | 0 B |
-| `shakespeare.txt` | **5.64 MB** | `Stream` (Sync) | 3.39 GB/s (1,665 μs) | 184 B |
-| `shakespeare.txt` | **5.64 MB** | `Stream` (Async) | 3.70 GB/s (1,522 μs) | 272 B |
+### 1. In-Memory Throughput (.NET 10 vs. Rust `fastcdc-rs`)
+
+#### `shakespeare.txt` (5.44 MB text)
+
+| Implementation | Variant / Average Chunk Size | Time | Throughput | vs. Rust |
+| :--- | :--- | ---: | ---: | :---: |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~16 KB** | **1,073.9 μs** | **5.07 GB/s** | **+30.6% faster** |
+| Rust (`fastcdc-rs`) | `V2020` ~16 KB | 1,402.1 μs | 3.88 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~32 KB** | **1,001.2 μs** | **5.44 GB/s** | **+29.7% faster** |
+| Rust (`fastcdc-rs`) | `V2020` ~32 KB | 1,298.5 μs | 4.19 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~64 KB** | **1,086.4 μs** | **5.01 GB/s** | **+28.1% faster** |
+| Rust (`fastcdc-rs`) | `V2020` ~64 KB | 1,391.5 μs | 3.91 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | `V2016` ~16 KB | 1,435.1 μs | 3.79 GB/s | +5.4% faster |
+| Rust (`fastcdc-rs`) | `V2016` ~16 KB | 1,512.1 μs | 3.60 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | `Ronomon` ~16 KB | 1,460.1 μs | 3.73 GB/s | parity |
+| Rust (`fastcdc-rs`) | `Ronomon` ~16 KB | 1,475.9 μs | 3.69 GB/s | baseline |
+
+#### `tsunami.tiff` (3.07 MB binary)
+
+| Implementation | Variant / Average Chunk Size | Time | Throughput | vs. Rust |
+| :--- | :--- | ---: | ---: | :---: |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~16 KB** | **615.5 μs** | **4.99 GB/s** | **+26.0% faster** |
+| Rust (`fastcdc-rs`) | `V2020` ~16 KB | 775.4 μs | 3.96 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~32 KB** | **579.6 μs** | **5.30 GB/s** | **+32.9% faster** |
+| Rust (`fastcdc-rs`) | `V2020` ~32 KB | 770.3 μs | 3.99 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~64 KB** | **586.2 μs** | **5.24 GB/s** | **+31.4% faster** |
+| Rust (`fastcdc-rs`) | `V2020` ~64 KB | 770.3 μs | 3.99 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | `V2016` ~16 KB | 810.3 μs | 3.79 GB/s | +6.4% faster |
+| Rust (`fastcdc-rs`) | `V2016` ~16 KB | 861.9 μs | 3.56 GB/s | baseline |
+| **.NET 10 (`FastCdc`)** | `Ronomon` ~16 KB | 785.3 μs | 3.91 GB/s | parity |
+| Rust (`fastcdc-rs`) | `Ronomon` ~16 KB | 777.6 μs | 3.95 GB/s | baseline |
+
+---
+
+### 2. .NET 10 Streaming & Allocation Profile (`FastCdc` v3.0.0)
+
+| Fixture | Size | Target Avg | Method | Time | Throughput | Allocated |
+| :--- | ---: | ---: | :--- | ---: | ---: | ---: |
+| `tsunami.tiff` | 3.07 MB | 16 KB | In-Memory `Span` | 615.5 μs | 4.99 GB/s | 0 B |
+| `tsunami.tiff` | 3.07 MB | 16 KB | `Stream` (Sync) | 678.4 μs | 4.53 GB/s | 320 B |
+| `tsunami.tiff` | 3.07 MB | 16 KB | `Stream` (Async) | 682.0 μs | 4.50 GB/s | 408 B |
+| `tsunami.tiff` | 3.07 MB | 32 KB | `Stream` (Async) | 665.6 μs | 4.62 GB/s | 408 B |
+| `tsunami.tiff` | 3.07 MB | 64 KB | `Stream` (Async) | 674.4 μs | 4.55 GB/s | 408 B |
+| `shakespeare.txt` | 5.44 MB | 16 KB | In-Memory `Span` | 1,073.9 μs | 5.07 GB/s | 0 B |
+| `shakespeare.txt` | 5.44 MB | 16 KB | `Stream` (Sync) | 1,223.4 μs | 4.45 GB/s | 320 B |
+| `shakespeare.txt` | 5.44 MB | 16 KB | `Stream` (Async) | 1,274.8 μs | 4.27 GB/s | 408 B |
+| `shakespeare.txt` | 5.44 MB | 32 KB | `Stream` (Async) | 1,195.9 μs | 4.55 GB/s | 408 B |
+| `shakespeare.txt` | 5.44 MB | 64 KB | `Stream` (Async) | 1,263.2 μs | 4.31 GB/s | 408 B |
 
 Run the benchmarks locally:
 
@@ -132,7 +191,7 @@ dotnet run --project benchmarks/FastCdc.Benchmark -c Release
 
 ## Acknowledgments
 
-- Originally forked from [AlpaGit/fastcdc-net](https://github.com/AlpaGit/fastcdc-net), based on [fastcdc-rs](https://github.com/nlfiedler/fastcdc-rs) (specifically its `ronomon` variant), ensuring cross-language chunk boundary and hash compatibility.
+- Originally forked from [AlpaGit/fastcdc-net](https://github.com/AlpaGit/fastcdc-net), based on [fastcdc-rs](https://github.com/nlfiedler/fastcdc-rs), ensuring cross-language chunk boundary and hash compatibility across `v2020`, `v2016`, and `ronomon`.
 - Modernized for .NET 10 and co-developed with **Antigravity (Google DeepMind)**.
 
 ---

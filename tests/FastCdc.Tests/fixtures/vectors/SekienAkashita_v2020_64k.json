@@ -1,0 +1,17 @@
+{
+  "fixture": "SekienAkashita.jpg",
+  "variant": "v2020",
+  "min_size": 32768,
+  "avg_size": 65536,
+  "max_size": 131072,
+  "normalization_level": 1,
+  "total_bytes": 109466,
+  "chunk_count": 1,
+  "chunks": [
+    {
+      "offset": 0,
+      "length": 109466,
+      "hash": "2504464741100432583"
+    }
+  ]
+}
