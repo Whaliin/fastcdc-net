@@ -138,30 +138,30 @@ Measurements conducted on an **Intel Core i5-12600K 3.70GHz** comparing **.NET 1
 
 | Implementation | Variant / Average Chunk Size | Time | Throughput | vs. Rust |
 | :--- | :--- | ---: | ---: | :---: |
-| **.NET 10 (`FastCdc`)** | **`V2020` ~16 KB** | **1,073.9 μs** | **5.07 GB/s** | **+30.6% faster** |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~16 KB** | **1,058.0 μs** | **5.14 GB/s** | **+32.5% faster** |
 | Rust (`fastcdc-rs`) | `V2020` ~16 KB | 1,402.1 μs | 3.88 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | **`V2020` ~32 KB** | **1,001.2 μs** | **5.44 GB/s** | **+29.7% faster** |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~32 KB** | **987.3 μs** | **5.51 GB/s** | **+31.5% faster** |
 | Rust (`fastcdc-rs`) | `V2020` ~32 KB | 1,298.5 μs | 4.19 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | **`V2020` ~64 KB** | **1,086.4 μs** | **5.01 GB/s** | **+28.1% faster** |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~64 KB** | **1,090.1 μs** | **4.99 GB/s** | **+27.6% faster** |
 | Rust (`fastcdc-rs`) | `V2020` ~64 KB | 1,391.5 μs | 3.91 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | `V2016` ~16 KB | 1,435.1 μs | 3.79 GB/s | +5.4% faster |
+| **.NET 10 (`FastCdc`)** | `V2016` ~16 KB | 1,412.0 μs | 3.85 GB/s | +7.1% faster |
 | Rust (`fastcdc-rs`) | `V2016` ~16 KB | 1,512.1 μs | 3.60 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | `Ronomon` ~16 KB | 1,460.1 μs | 3.73 GB/s | parity |
+| **.NET 10 (`FastCdc`)** | `Ronomon` ~16 KB | 1,489.1 μs | 3.65 GB/s | parity |
 | Rust (`fastcdc-rs`) | `Ronomon` ~16 KB | 1,475.9 μs | 3.69 GB/s | baseline |
 
 #### `tsunami.tiff` (3.07 MB binary)
 
 | Implementation | Variant / Average Chunk Size | Time | Throughput | vs. Rust |
 | :--- | :--- | ---: | ---: | :---: |
-| **.NET 10 (`FastCdc`)** | **`V2020` ~16 KB** | **615.5 μs** | **4.99 GB/s** | **+26.0% faster** |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~16 KB** | **601.9 μs** | **5.10 GB/s** | **+28.8% faster** |
 | Rust (`fastcdc-rs`) | `V2020` ~16 KB | 775.4 μs | 3.96 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | **`V2020` ~32 KB** | **579.6 μs** | **5.30 GB/s** | **+32.9% faster** |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~32 KB** | **580.2 μs** | **5.29 GB/s** | **+32.8% faster** |
 | Rust (`fastcdc-rs`) | `V2020` ~32 KB | 770.3 μs | 3.99 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | **`V2020` ~64 KB** | **586.2 μs** | **5.24 GB/s** | **+31.4% faster** |
+| **.NET 10 (`FastCdc`)** | **`V2020` ~64 KB** | **599.0 μs** | **5.13 GB/s** | **+28.6% faster** |
 | Rust (`fastcdc-rs`) | `V2020` ~64 KB | 770.3 μs | 3.99 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | `V2016` ~16 KB | 810.3 μs | 3.79 GB/s | +6.4% faster |
+| **.NET 10 (`FastCdc`)** | `V2016` ~16 KB | 820.7 μs | 3.74 GB/s | +5.0% faster |
 | Rust (`fastcdc-rs`) | `V2016` ~16 KB | 861.9 μs | 3.56 GB/s | baseline |
-| **.NET 10 (`FastCdc`)** | `Ronomon` ~16 KB | 785.3 μs | 3.91 GB/s | parity |
+| **.NET 10 (`FastCdc`)** | `Ronomon` ~16 KB | 799.2 μs | 3.84 GB/s | parity |
 | Rust (`fastcdc-rs`) | `Ronomon` ~16 KB | 777.6 μs | 3.95 GB/s | baseline |
 
 ---
@@ -170,16 +170,16 @@ Measurements conducted on an **Intel Core i5-12600K 3.70GHz** comparing **.NET 1
 
 | Fixture | Size | Target Avg | Method | Time | Throughput | Allocated |
 | :--- | ---: | ---: | :--- | ---: | ---: | ---: |
-| `tsunami.tiff` | 3.07 MB | 16 KB | In-Memory `Span` | 615.5 μs | 4.99 GB/s | 0 B |
-| `tsunami.tiff` | 3.07 MB | 16 KB | `Stream` (Sync) | 678.4 μs | 4.53 GB/s | 320 B |
-| `tsunami.tiff` | 3.07 MB | 16 KB | `Stream` (Async) | 682.0 μs | 4.50 GB/s | 408 B |
-| `tsunami.tiff` | 3.07 MB | 32 KB | `Stream` (Async) | 665.6 μs | 4.62 GB/s | 408 B |
-| `tsunami.tiff` | 3.07 MB | 64 KB | `Stream` (Async) | 674.4 μs | 4.55 GB/s | 408 B |
-| `shakespeare.txt` | 5.44 MB | 16 KB | In-Memory `Span` | 1,073.9 μs | 5.07 GB/s | 0 B |
-| `shakespeare.txt` | 5.44 MB | 16 KB | `Stream` (Sync) | 1,223.4 μs | 4.45 GB/s | 320 B |
-| `shakespeare.txt` | 5.44 MB | 16 KB | `Stream` (Async) | 1,274.8 μs | 4.27 GB/s | 408 B |
-| `shakespeare.txt` | 5.44 MB | 32 KB | `Stream` (Async) | 1,195.9 μs | 4.55 GB/s | 408 B |
-| `shakespeare.txt` | 5.44 MB | 64 KB | `Stream` (Async) | 1,263.2 μs | 4.31 GB/s | 408 B |
+| `tsunami.tiff` | 3.07 MB | 16 KB | In-Memory `Span` | 601.9 μs | 5.10 GB/s | 0 B |
+| `tsunami.tiff` | 3.07 MB | 16 KB | `Stream` (Sync) | 695.6 μs | 4.41 GB/s | 232 B |
+| `tsunami.tiff` | 3.07 MB | 16 KB | `Stream` (Async) | 668.7 μs | 4.59 GB/s | 320 B |
+| `tsunami.tiff` | 3.07 MB | 32 KB | `Stream` (Async) | 664.4 μs | 4.62 GB/s | 320 B |
+| `tsunami.tiff` | 3.07 MB | 64 KB | `Stream` (Async) | 664.4 μs | 4.62 GB/s | 320 B |
+| `shakespeare.txt` | 5.44 MB | 16 KB | In-Memory `Span` | 1,058.0 μs | 5.14 GB/s | 0 B |
+| `shakespeare.txt` | 5.44 MB | 16 KB | `Stream` (Sync) | 1,207.6 μs | 4.51 GB/s | 232 B |
+| `shakespeare.txt` | 5.44 MB | 16 KB | `Stream` (Async) | 1,228.6 μs | 4.43 GB/s | 320 B |
+| `shakespeare.txt` | 5.44 MB | 32 KB | `Stream` (Async) | 1,177.8 μs | 4.62 GB/s | 320 B |
+| `shakespeare.txt` | 5.44 MB | 64 KB | `Stream` (Async) | 1,238.4 μs | 4.39 GB/s | 320 B |
 
 Run the benchmarks locally:
 
