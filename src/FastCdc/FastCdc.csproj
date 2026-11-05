@@ -8,7 +8,7 @@
 		<Description>Content-defined chunking (FastCDC) for .NET</Description>
 		<RepositoryUrl>https://github.com/Whaliin/fastcdc-net</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageVersion>2.0.0</PackageVersion>
+		<PackageVersion>2.0.1</PackageVersion>
 		<Authors>Whaliin</Authors>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>

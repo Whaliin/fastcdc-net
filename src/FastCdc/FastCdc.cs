@@ -148,6 +148,8 @@ public static class FastCdc
 
 				while (true)
 				{
+					cancellationToken.ThrowIfCancellationRequested();
+
 					int remaining = buffered - windowOffset;
 					if (remaining == 0) break;
 
@@ -213,36 +215,44 @@ public static class FastCdc
 				{
 					while (buffer.Length > 0)
 					{
-						if (buffer.IsSingleSegment)
+						cancellationToken.ThrowIfCancellationRequested();
+
+						if (!result.IsCompleted && buffer.Length < opts.MaxSize)
+							break;
+
+						uint chunkHash;
+						int chunkSize;
 						{
-							var span = buffer.FirstSpan;
-							var (chunkHash, chunkSize) = Cut(span, in opts, span.Length, result.IsCompleted);
+							ReadOnlySpan<byte> span;
+							int scanLength;
 
-							if (chunkSize == 0) break;
+							if (buffer.FirstSpan.Length >= opts.MaxSize)
+							{
+								span = buffer.FirstSpan;
+								scanLength = opts.MaxSize;
+							}
+							else if (buffer.IsSingleSegment)
+							{
+								span = buffer.FirstSpan;
+								scanLength = span.Length;
+							}
+							else
+							{
+								scratchBuffer ??= ArrayPool<byte>.Shared.Rent(opts.MaxSize);
+								scanLength = (int)Math.Min(buffer.Length, opts.MaxSize);
+								buffer.Slice(0, scanLength).CopyTo(scratchBuffer);
+								span = scratchBuffer.AsSpan(0, scanLength);
+							}
 
-							yield return new Chunk(streamOffset, chunkHash, chunkSize);
-							streamOffset += chunkSize;
-							buffer = buffer.Slice(chunkSize);
-							consumed = buffer.Start;
+							(chunkHash, chunkSize) = Cut(span, in opts, scanLength, result.IsCompleted);
 						}
-						else
-						{
-							if (!result.IsCompleted && buffer.Length < opts.MaxSize)
-								break;
 
-							scratchBuffer ??= ArrayPool<byte>.Shared.Rent(opts.MaxSize);
-							int copyLength = (int)Math.Min(buffer.Length, opts.MaxSize);
-							buffer.Slice(0, copyLength).CopyTo(scratchBuffer);
+						if (chunkSize == 0) break;
 
-							var (chunkHash, chunkSize) = Cut(scratchBuffer.AsSpan(0, copyLength), in opts, copyLength, result.IsCompleted);
-
-							if (chunkSize == 0) break;
-
-							yield return new Chunk(streamOffset, chunkHash, chunkSize);
-							streamOffset += chunkSize;
-							buffer = buffer.Slice(chunkSize);
-							consumed = buffer.Start;
-						}
+						yield return new Chunk(streamOffset, chunkHash, chunkSize);
+						streamOffset += chunkSize;
+						buffer = buffer.Slice(chunkSize);
+						consumed = buffer.Start;
 					}
 				}
 				finally

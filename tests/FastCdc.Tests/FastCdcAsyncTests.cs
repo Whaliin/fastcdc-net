@@ -157,9 +157,9 @@ public class FastCdcAsyncTests
 		byte[] data = File.ReadAllBytes("./fixtures/SekienAkashita.jpg");
 		var expected = FastCdc.Chunk(data, FastCdcOptions.Default16KB).ToList();
 
-		var pipe = new Pipe();
+		Pipe pipe = new(new PipeOptions(pauseWriterThreshold: 1024 * 1024));
 		// Write data into the pipe writer in background
-		_ = Task.Run(async () =>
+		Task writerTask = Task.Run(async () =>
 		{
 			await pipe.Writer.WriteAsync(data);
 			await pipe.Writer.CompleteAsync();
@@ -171,6 +171,100 @@ public class FastCdcAsyncTests
 			actual.Add(chunk);
 		}
 
+		await writerTask;
 		Assert.Equal(expected, actual);
+	}
+
+	[Fact]
+	public async Task FastCdc_ChunkAsync_PipeReader_CompletedTerminalBuffer_MatchesSpan()
+	{
+		byte[] data = File.ReadAllBytes("./fixtures/SekienAkashita.jpg");
+		List<Chunk> expected = FastCdc.Chunk(data, FastCdcOptions.Default16KB).ToList();
+
+		// Write the entire payload and complete the writer BEFORE starting ChunkAsync.
+		// This tests a completed multi-chunk terminal buffer (> MaxSize) right on the first ReadAsync.
+		Pipe pipe = new(new PipeOptions(pauseWriterThreshold: 1024 * 1024));
+		await pipe.Writer.WriteAsync(data);
+		await pipe.Writer.CompleteAsync();
+
+		List<Chunk> actual = new();
+		await foreach (Chunk chunk in FastCdc.ChunkAsync(pipe.Reader, FastCdcOptions.Default16KB))
+		{
+			actual.Add(chunk);
+		}
+
+		Assert.Equal(expected, actual);
+	}
+
+	[Fact]
+	public async Task FastCdc_ChunkAsync_PipeReader_SmallSegmentsForced_MatchesSpan()
+	{
+		byte[] data = File.ReadAllBytes("./fixtures/SekienAkashita.jpg");
+		List<Chunk> expected = FastCdc.Chunk(data, FastCdcOptions.Default16KB).ToList();
+
+		// Force small segments (512 bytes) so that FirstSpan is always < MaxSize (32 KB),
+		// exercising the cross-segment scratch buffer copy path for every chunk.
+		PipeOptions pipeOptions = new(minimumSegmentSize: 512, pauseWriterThreshold: 1024 * 1024);
+		Pipe pipe = new(pipeOptions);
+
+		Task producerTask = Task.Run(async () =>
+		{
+			int sent = 0;
+			while (sent < data.Length)
+			{
+				int toWrite = Math.Min(512, data.Length - sent);
+				await pipe.Writer.WriteAsync(data.AsMemory(sent, toWrite));
+				sent += toWrite;
+			}
+			await pipe.Writer.CompleteAsync();
+		});
+
+		List<Chunk> actual = new();
+		await foreach (Chunk chunk in FastCdc.ChunkAsync(pipe.Reader, FastCdcOptions.Default16KB))
+		{
+			actual.Add(chunk);
+		}
+
+		await producerTask;
+		Assert.Equal(expected, actual);
+	}
+
+	[Fact]
+	public async Task FastCdc_ChunkAsync_PipeReader_CancellationMidStream_Cancels()
+	{
+		byte[] data = File.ReadAllBytes("./fixtures/SekienAkashita.jpg");
+		Pipe pipe = new(new PipeOptions(pauseWriterThreshold: 1024 * 1024));
+		await pipe.Writer.WriteAsync(data);
+		await pipe.Writer.CompleteAsync();
+
+		using CancellationTokenSource cts = new();
+
+		await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+		{
+			int count = 0;
+			await foreach (Chunk _ in FastCdc.ChunkAsync(pipe.Reader, FastCdcOptions.Default16KB, cancellationToken: cts.Token))
+			{
+				count++;
+				if (count == 2)
+				{
+					cts.Cancel();
+				}
+			}
+		});
+	}
+
+	[Fact]
+	public async Task FastCdc_ChunkAsync_PipeReader_WriterException_Propagates()
+	{
+		Pipe pipe = new();
+		await pipe.Writer.WriteAsync(new byte[100]);
+		pipe.Writer.Complete(new InvalidOperationException("Pipe producer failure"));
+
+		await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+		{
+			await foreach (Chunk _ in FastCdc.ChunkAsync(pipe.Reader, FastCdcOptions.Default16KB))
+			{
+			}
+		});
 	}
 }

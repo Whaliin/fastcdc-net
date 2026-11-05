@@ -1,6 +1,6 @@
 # FastCdc
 
-A .NET implementation of the [FastCDC algorithm](https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia) for content-defined chunking.
+A high-performance .NET implementation of the [FastCDC algorithm](https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia) for content-defined chunking, providing bit-for-bit compatibility with Rust's [`fastcdc-rs`](https://github.com/nlfiedler/fastcdc-rs) (`fastcdc::ronomon`).
 
 [![CI](https://github.com/Whaliin/fastcdc-net/actions/workflows/ci.yml/badge.svg)](https://github.com/Whaliin/fastcdc-net/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/FastCdc.svg)](https://www.nuget.org/packages/FastCdc)
@@ -132,7 +132,7 @@ dotnet run --project benchmarks/FastCdc.Benchmark -c Release
 
 ## Acknowledgments
 
-- Originally forked from [AlpaGit/fastcdc-net](https://github.com/AlpaGit/fastcdc-net), based on [fastcdc-rs](https://github.com/nlfiedler/fastcdc-rs).
+- Originally forked from [AlpaGit/fastcdc-net](https://github.com/AlpaGit/fastcdc-net), based on [fastcdc-rs](https://github.com/nlfiedler/fastcdc-rs) (specifically its `ronomon` variant), ensuring cross-language chunk boundary and hash compatibility.
 - Modernized for .NET 10 and co-developed with **Antigravity (Google DeepMind)**.
 
 ---
