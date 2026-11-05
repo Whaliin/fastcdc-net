@@ -3,7 +3,16 @@
 A .NET implementation of the [FastCDC algorithm](https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia) for content-defined chunking.
 
 [![CI](https://github.com/Whaliin/fastcdc-net/actions/workflows/ci.yml/badge.svg)](https://github.com/Whaliin/fastcdc-net/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/FastCdc.svg)](https://www.nuget.org/packages/FastCdc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+---
+
+## Installation
+
+```bash
+dotnet add package FastCdc
+```
 
 ---
 
