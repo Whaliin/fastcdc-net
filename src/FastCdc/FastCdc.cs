@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 [assembly: InternalsVisibleTo("FastCdc.Tests")]
 namespace FastCdc;
@@ -195,43 +196,27 @@ public static class FastCdc
 
 		var opts = options ?? FastCdcOptions.Default16KB;
 		long streamOffset = 0L;
+		byte[]? scratchBuffer = null;
 
-		while (true)
+		try
 		{
-			cancellationToken.ThrowIfCancellationRequested();
-
-			var result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-			var buffer = result.Buffer;
-			var consumed = buffer.Start;
-			var examined = buffer.End;
-
-			try
+			while (true)
 			{
-				while (buffer.Length > 0)
+				cancellationToken.ThrowIfCancellationRequested();
+
+				var result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+				var buffer = result.Buffer;
+				var consumed = buffer.Start;
+				var examined = buffer.End;
+
+				try
 				{
-					if (buffer.IsSingleSegment)
+					while (buffer.Length > 0)
 					{
-						var span = buffer.FirstSpan;
-						var (chunkHash, chunkSize) = Cut(span, in opts, span.Length, result.IsCompleted);
-
-						if (chunkSize == 0) break;
-
-						yield return new Chunk(streamOffset, chunkHash, chunkSize);
-						streamOffset += chunkSize;
-						buffer = buffer.Slice(chunkSize);
-						consumed = buffer.Start;
-					}
-					else
-					{
-						if (!result.IsCompleted && buffer.Length < opts.MaxSize)
-							break;
-
-						int copyLength = (int)Math.Min(buffer.Length, opts.MaxSize);
-						byte[] rented = ArrayPool<byte>.Shared.Rent(copyLength);
-						try
+						if (buffer.IsSingleSegment)
 						{
-							buffer.Slice(0, copyLength).CopyTo(rented);
-							var (chunkHash, chunkSize) = Cut(rented.AsSpan(0, copyLength), in opts, copyLength, result.IsCompleted);
+							var span = buffer.FirstSpan;
+							var (chunkHash, chunkSize) = Cut(span, in opts, span.Length, result.IsCompleted);
 
 							if (chunkSize == 0) break;
 
@@ -240,19 +225,38 @@ public static class FastCdc
 							buffer = buffer.Slice(chunkSize);
 							consumed = buffer.Start;
 						}
-						finally
+						else
 						{
-							ArrayPool<byte>.Shared.Return(rented);
+							if (!result.IsCompleted && buffer.Length < opts.MaxSize)
+								break;
+
+							scratchBuffer ??= ArrayPool<byte>.Shared.Rent(opts.MaxSize);
+							int copyLength = (int)Math.Min(buffer.Length, opts.MaxSize);
+							buffer.Slice(0, copyLength).CopyTo(scratchBuffer);
+
+							var (chunkHash, chunkSize) = Cut(scratchBuffer.AsSpan(0, copyLength), in opts, copyLength, result.IsCompleted);
+
+							if (chunkSize == 0) break;
+
+							yield return new Chunk(streamOffset, chunkHash, chunkSize);
+							streamOffset += chunkSize;
+							buffer = buffer.Slice(chunkSize);
+							consumed = buffer.Start;
 						}
 					}
 				}
-			}
-			finally
-			{
-				reader.AdvanceTo(consumed, examined);
-			}
+				finally
+				{
+					reader.AdvanceTo(consumed, examined);
+				}
 
-			if (result.IsCompleted) break;
+				if (result.IsCompleted) break;
+			}
+		}
+		finally
+		{
+			if (scratchBuffer != null)
+				ArrayPool<byte>.Shared.Return(scratchBuffer);
 		}
 	}
 
@@ -266,6 +270,9 @@ public static class FastCdc
 		int minSize = options.MinSize;
 		int maxSize = options.MaxSize;
 
+		if (sourceSize > source.Length)
+			sourceSize = source.Length;
+
 		if (sourceSize <= minSize)
 			return eof ? (0u, sourceSize) : (0u, 0);
 
@@ -276,7 +283,9 @@ public static class FastCdc
 		int len1 = centerOffset > sourceSize ? sourceSize : centerOffset;
 		int len2 = sourceSize;
 
-		ReadOnlySpan<uint> hashes = Table.Hashes;
+		ref uint hashesRef = ref MemoryMarshal.GetReference(Table.Hashes);
+		ref byte sourceRef = ref MemoryMarshal.GetReference(source);
+
 		uint maskS = options.MaskS;
 		uint maskL = options.MaskL;
 
@@ -287,7 +296,8 @@ public static class FastCdc
 		{
 			while (i < len1)
 			{
-				hash = (hash >> 1) + hashes[source[i]];
+				byte b = Unsafe.Add(ref sourceRef, (nint)(uint)i);
+				hash = (hash >> 1) + Unsafe.Add(ref hashesRef, (nint)b);
 				i++;
 				if ((hash & maskS) == 0)
 					return (hash, i);
@@ -295,7 +305,8 @@ public static class FastCdc
 
 			while (i < len2)
 			{
-				hash = (hash >> 1) + hashes[source[i]];
+				byte b = Unsafe.Add(ref sourceRef, (nint)(uint)i);
+				hash = (hash >> 1) + Unsafe.Add(ref hashesRef, (nint)b);
 				i++;
 				if ((hash & maskL) == 0)
 					return (hash, i);
