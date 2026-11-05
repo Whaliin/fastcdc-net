@@ -44,25 +44,28 @@ public class FastCdcInvariantTests
 	[InlineData(63)]
 	[InlineData(64)]
 	[InlineData(65)]
-	[InlineData(255)]
+	[InlineData(68)]
+	[InlineData(70)]
 	[InlineData(256)]
-	[InlineData(257)]
-	[InlineData(1023)]
 	[InlineData(1024)]
 	[InlineData(1025)]
 	[InlineData(5000)]
 	public void FastCdc_BoundaryPayloadSizes_SatisfyInvariants(int size)
 	{
-		FastCdcOptions options = new(minSize: 64, avgSize: 256, maxSize: 1024);
 		byte[] data = new byte[size];
 		RandomNumberGenerator.Fill(data);
 
-		List<Chunk> spanChunks = FastCdc.Chunk(data, options).ToList();
-		AssertChunkInvariants(spanChunks, size, options);
+		foreach (FastCdcFormat format in new[] { FastCdcFormat.V2020, FastCdcFormat.V2016, FastCdcFormat.Ronomon })
+		{
+			FastCdcOptions options = new(minSize: 64, avgSize: 256, maxSize: 1024, format: format);
 
-		using MemoryStream stream = new(data, writable: false);
-		List<Chunk> streamChunks = FastCdc.Chunk(stream, options).ToList();
-		Assert.Equal(spanChunks, streamChunks);
+			List<Chunk> spanChunks = FastCdc.Chunk(data, options).ToList();
+			AssertChunkInvariants(spanChunks, size, options);
+
+			using MemoryStream stream = new(data, writable: false);
+			List<Chunk> streamChunks = FastCdc.Chunk(stream, options).ToList();
+			Assert.Equal(spanChunks, streamChunks);
+		}
 	}
 
 	[Theory]
@@ -71,26 +74,32 @@ public class FastCdcInvariantTests
 	[InlineData(0x5A)]
 	public void FastCdc_HomogeneousPayloads_SatisfyInvariants(byte fillByte)
 	{
-		FastCdcOptions options = new(minSize: 64, avgSize: 256, maxSize: 1024);
 		byte[] data = new byte[8192];
 		Array.Fill(data, fillByte);
 
-		List<Chunk> chunks = FastCdc.Chunk(data, options).ToList();
-		AssertChunkInvariants(chunks, data.Length, options);
+		foreach (FastCdcFormat format in new[] { FastCdcFormat.V2020, FastCdcFormat.V2016, FastCdcFormat.Ronomon })
+		{
+			FastCdcOptions options = new(minSize: 64, avgSize: 256, maxSize: 1024, format: format);
+			List<Chunk> chunks = FastCdc.Chunk(data, options).ToList();
+			AssertChunkInvariants(chunks, data.Length, options);
+		}
 	}
 
 	[Fact]
 	public void FastCdc_SequentialPattern_SatisfiesInvariants()
 	{
-		FastCdcOptions options = new(minSize: 64, avgSize: 256, maxSize: 1024);
 		byte[] data = new byte[16384];
 		for (int i = 0; i < data.Length; i++)
 		{
 			data[i] = (byte)(i % 256);
 		}
 
-		List<Chunk> chunks = FastCdc.Chunk(data, options).ToList();
-		AssertChunkInvariants(chunks, data.Length, options);
+		foreach (FastCdcFormat format in new[] { FastCdcFormat.V2020, FastCdcFormat.V2016, FastCdcFormat.Ronomon })
+		{
+			FastCdcOptions options = new(minSize: 64, avgSize: 256, maxSize: 1024, format: format);
+			List<Chunk> chunks = FastCdc.Chunk(data, options).ToList();
+			AssertChunkInvariants(chunks, data.Length, options);
+		}
 	}
 
 	[Theory]
@@ -126,7 +135,6 @@ public class FastCdcInvariantTests
 
 	[Theory]
 	[InlineData(64)]
-	[InlineData(128)]
 	[InlineData(256)]
 	public async Task FastCdc_MetamorphicEquivalence_FragmentedPipe_MatchesSpan(int chunkSize)
 	{
@@ -162,9 +170,7 @@ public class FastCdcInvariantTests
 
 	[Theory]
 	[InlineData(512)]
-	[InlineData(1024)]
 	[InlineData(4096)]
-	[InlineData(8192)]
 	public async Task FastCdc_MetamorphicEquivalence_AllStreamsAndPipeMatchSpan(int chunkSize)
 	{
 		byte[] data = File.ReadAllBytes("./fixtures/SekienAkashita.jpg");

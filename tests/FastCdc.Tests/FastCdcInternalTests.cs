@@ -14,7 +14,8 @@ public class FastCdcInternalTests
 		Assert.Equal(15u, FastCdcOptions.RoundLog2(32767));
 
 		Assert.True(FastCdcOptions.RoundLog2(FastCdcOptions.AverageMin) >= 8u);
-		Assert.True(FastCdcOptions.RoundLog2(FastCdcOptions.AverageMax) <= 28u);
+		Assert.True(FastCdcOptions.RoundLog2(FastCdcOptions.AverageMax) <= 22u);
+		Assert.True(FastCdcOptions.RoundLog2(FastCdcOptions.RonomonAverageMax) <= 28u);
 	}
 
 	[Fact]
@@ -65,43 +66,72 @@ public class FastCdcInternalTests
 		Assert.Equal(0x7FFF_FFFFu, FastCdcOptions.Mask(31));
 	}
 
-	[Fact]
-	public void FastCdc_Cut_SourceSizeLessThanOrEqualToMinSize_EofTrue()
+	[Theory]
+	[InlineData(FastCdcFormat.V2020)]
+	[InlineData(FastCdcFormat.V2016)]
+	[InlineData(FastCdcFormat.Ronomon)]
+	public void FastCdc_Cut_SourceSizeLessThanOrEqualToMinSize_EofTrue(FastCdcFormat format)
 	{
 		byte[] data = new byte[64];
-		var options = new FastCdcOptions(64, 256, 1024);
-		var (hash, size) = FastCdc.Cut(data, in options, 50, eof: true);
-		Assert.Equal(0u, hash);
+		FastCdcOptions options = new(64, 256, 1024, format);
+		(ulong hash, int size) = FastCdc.Cut(data, in options, 50, eof: true);
+		Assert.Equal(0UL, hash);
 		Assert.Equal(50, size);
 	}
 
-	[Fact]
-	public void FastCdc_Cut_SourceSizeLessThanOrEqualToMinSize_EofFalse()
+	[Theory]
+	[InlineData(FastCdcFormat.V2020)]
+	[InlineData(FastCdcFormat.V2016)]
+	[InlineData(FastCdcFormat.Ronomon)]
+	public void FastCdc_Cut_SourceSizeLessThanOrEqualToMinSize_EofFalse(FastCdcFormat format)
 	{
 		byte[] data = new byte[64];
-		var options = new FastCdcOptions(64, 256, 1024);
-		var (hash, size) = FastCdc.Cut(data, in options, 50, eof: false);
-		Assert.Equal(0u, hash);
+		FastCdcOptions options = new(64, 256, 1024, format);
+		(ulong hash, int size) = FastCdc.Cut(data, in options, 50, eof: false);
+		Assert.Equal(0UL, hash);
 		Assert.Equal(0, size);
 	}
 
-	[Fact]
-	public void FastCdc_Cut_NoMatch_EofFalse_ReturnsZeroSize()
+	[Theory]
+	[InlineData(FastCdcFormat.V2020)]
+	[InlineData(FastCdcFormat.V2016)]
+	[InlineData(FastCdcFormat.Ronomon)]
+	public void FastCdc_Cut_NoMatch_EofFalse_ReturnsZeroSize(FastCdcFormat format)
 	{
 		byte[] data = new byte[512];
-		var options = new FastCdcOptions(64, 256, 1024);
-		var (hash, size) = FastCdc.Cut(data, in options, 512, eof: false);
-		Assert.NotEqual(0u, hash);
+		FastCdcOptions options = new(64, 256, 1024, format);
+		(ulong hash, int size) = FastCdc.Cut(data, in options, 512, eof: false);
+		Assert.NotEqual(0UL, hash);
 		Assert.Equal(0, size);
 	}
 
-	[Fact]
-	public void FastCdc_Cut_NoMatch_EofTrue_ReturnsRemainingSize()
+	[Theory]
+	[InlineData(FastCdcFormat.V2020)]
+	[InlineData(FastCdcFormat.V2016)]
+	[InlineData(FastCdcFormat.Ronomon)]
+	public void FastCdc_Cut_NoMatch_EofTrue_ReturnsRemainingSize(FastCdcFormat format)
 	{
 		byte[] data = new byte[512];
-		var options = new FastCdcOptions(64, 256, 1024);
-		var (hash, size) = FastCdc.Cut(data, in options, 512, eof: true);
-		Assert.NotEqual(0u, hash);
+		FastCdcOptions options = new(64, 256, 1024, format);
+		(ulong hash, int size) = FastCdc.Cut(data, in options, 512, eof: true);
+		Assert.NotEqual(0UL, hash);
 		Assert.Equal(512, size);
+	}
+
+	[Fact]
+	public void FastCdc_Cut_V2020_OddTerminalLength_MatchesV2016Hash()
+	{
+		// When no cut point is found and the remaining EOF window has an odd length,
+		// V2020 folds the final odd byte into the Gear hash identically to V2016.
+		byte[] data = new byte[513];
+		FastCdcOptions options2020 = new(64, 256, 1024, FastCdcFormat.V2020);
+		FastCdcOptions options2016 = new(64, 256, 1024, FastCdcFormat.V2016);
+
+		(ulong hash2020, int size2020) = FastCdc.Cut(data, in options2020, data.Length, eof: true);
+		(ulong hash2016, int size2016) = FastCdc.Cut(data, in options2016, data.Length, eof: true);
+
+		Assert.Equal(513, size2020);
+		Assert.Equal(size2016, size2020);
+		Assert.Equal(hash2016, hash2020);
 	}
 }

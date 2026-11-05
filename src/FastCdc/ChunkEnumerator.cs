@@ -34,7 +34,7 @@ public ref struct ChunkEnumerator
 		int remaining = _source.Length - _offset;
 		if (remaining == 0) return false;
 
-		var (hash, size) = FastCdc.Cut(
+		(ulong hash, int size) = FastCdc.Cut(
 			_source.Slice(_offset, remaining),
 			in _options,
 			remaining,
@@ -50,7 +50,7 @@ public ref struct ChunkEnumerator
 	/// <summary>Collects all remaining chunks into a <see cref="List{Chunk}"/>.</summary>
 	public List<Chunk> ToList()
 	{
-		var list = new List<Chunk>();
+		List<Chunk> list = new();
 		while (MoveNext())
 			list.Add(_current);
 		return list;
